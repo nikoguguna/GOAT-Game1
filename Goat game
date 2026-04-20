@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GOAT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow+Condensed:wght@500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+button{-webkit-appearance:none;appearance:none;outline:none;border:none;cursor:pointer;font-family:'Barlow Condensed',sans-serif}
+input{-webkit-appearance:none;appearance:none;outline:none}
+:root{
+  --bg:#0d0d0d;--panel:#1a1a1a;--panel2:#242424;--border:#333333;
+  --green:#f5c842;--text:#f0ece0;--muted:#888877;
+  --gold:#f5c842;--red:#e85555;--orange:#f97316;
+  --pink:#e8504a;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  background:#0d0d0d;color:#f0ece0;
+  font-family:'Barlow Condensed',sans-serif;
+  height:100dvh;display:flex;flex-direction:column;
+  -webkit-tap-highlight-color:transparent;
+  max-width:430px;margin:0 auto;
+  overflow:hidden;
+  position:relative;
+}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 6px;flex-shrink:0;gap:6px}
+.title{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;letter-spacing:3px;flex-shrink:0}
+.topmult{text-align:center;flex:1;transition:opacity .2s}
+.mnum{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:#f5c842;text-shadow:0 0 16px rgba(245,200,66,.5);line-height:1;display:block}
+.mlbl{font-size:8px;color:#888877;letter-spacing:2px;text-transform:uppercase;display:block}
+.chip{display:flex;align-items:center;gap:5px;background:#1a1a1a;border:1px solid #333;border-radius:30px;padding:4px 11px;flex-shrink:0}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:#f5c842;box-shadow:0 0 5px #f5c842}
+.chip .amt{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:#f5c842}
+
+/* BOARD */
+.board{margin:0 10px;background:#1a1a1a;border-radius:14px;padding:8px;flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* grid — cells slightly smaller */
+.grid{display:flex;flex-direction:column;gap:5px;align-items:center;flex:1;justify-content:center}
+.grow{display:flex;gap:5px;justify-content:center;width:100%}
+.gcell{position:relative;width:calc((100% - 10px)/3 * 0.82);flex-shrink:0}
+
+/* idle goat bob */
+@keyframes goatBob{0%,100%{transform:scale(1) translateY(0);opacity:1}40%{transform:scale(1) translateY(-6%);opacity:1}50%{transform:scale(0.2) translateY(30%);opacity:0}55%{transform:scale(0.2) translateY(30%);opacity:0}65%{transform:scale(1) translateY(0);opacity:1}}
+.goat.idle-anim{animation:goatBob 2.2s ease-in-out infinite;opacity:1;transform:scale(1)}
+
+/* holes */
+.hole-wrap{position:relative;width:100%;padding-top:100%}
+.hole{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a2a1a,#0d0d08);border:2px solid #333;box-shadow:inset 0 5px 15px rgba(0,0,0,.8),0 2px 0 rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hole-inner{position:absolute;inset:12%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#1a1a0d,#080808);box-shadow:inset 0 4px 12px rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.goat{width:80%;height:80%;opacity:0;transform:scale(0.2);transition:opacity .15s,transform .2s cubic-bezier(.34,1.4,.64,1)}
+.goat.show{opacity:1;transform:scale(1)}
+
+/* hole states */
+.h-ready{border-color:rgba(245,200,66,.3)!important;cursor:pointer}
+.h-ready:active{border-color:#f5c842!important;transform:scale(.93)}
+.h-hit{border-color:#f5c842!important;box-shadow:inset 0 4px 10px rgba(0,0,0,.3),0 0 0 2px rgba(245,200,66,.25)!important;background:radial-gradient(circle at 35% 30%,#2a2200,#141000)!important}
+.h-reveal{border-color:#e8504a!important;background:radial-gradient(circle at 35% 30%,#3a0e0e,#1a0808)!important}
+.h-miss{border-color:#e85555!important;background:radial-gradient(circle at 35% 30%,#3a0000,#200000)!important}
+.h-empty{opacity:.4;cursor:default}
+.h-idle{opacity:1;cursor:default}
+
+/* float mult */
+.fmult{position:absolute;top:-4px;left:50%;transform:translateX(-50%);font-family:‘Rajdhani’,sans-serif;font-size:11px;font-weight:700;color:#f5c842;white-space:nowrap;pointer-events:none;opacity:0;z-index:5}
+.fmult.pop{animation:frise .7s ease-out forwards}
+@keyframes frise{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-28px)}}
+
+/* trail */
+.trail{display:flex;align-items:center;gap:4px;margin-top:4px;overflow-x:auto;scrollbar-width:none;min-height:14px;flex-shrink:0}
+.trail::-webkit-scrollbar{display:none}
+.trail span{font-size:10px;font-weight:700;color:#888877;white-space:nowrap}
+.trail span.cur{color:#f5c842}
+.trail i{color:#333;font-style:normal;font-size:9px}
+
+/* status */
+.st{text-align:center;font-size:10px;letter-spacing:1px;color:#888877;text-transform:uppercase;margin-top:3px;min-height:13px;flex-shrink:0}
+.st.ok{color:#f5c842}.st.bad{color:#e85555}
+
+/* stats */
+.stats{display:flex;gap:4px;margin:4px 10px 0;flex-shrink:0}
+.sc{flex:1;background:#1a1a1a;border-radius:7px;padding:3px 6px}
+.sc .l{font-size:8px;color:#888877;text-transform:uppercase;letter-spacing:.4px}
+.sc .v{font-family:‘Rajdhani’,sans-serif;font-size:13px;font-weight:700;color:#f0ece0}
+.sc .g{color:#f5c842}.sc .go{color:#e8504a}
+
+/* SHEET — fixed to bottom */
+.sheet{
+background:#1a1a1a;
+border-radius:14px 14px 0 0;
+padding:8px 10px max(14px,env(safe-area-inset-bottom));
+display:flex;flex-direction:column;gap:5px;
+flex-shrink:0;
+}
+.tabs{display:flex;background:#242424;border-radius:6px;padding:2px;gap:2px}
+.tab{flex:1;padding:5px;border:none;background:transparent;color:#888877;font-family:‘Barlow Condensed’,sans-serif;font-size:11px;font-weight:600;border-radius:4px;cursor:pointer;text-transform:uppercase;-webkit-appearance:none}
+.tab.on{background:#0d0d0d;color:#f0ece0}
+.r2{display:flex;gap:6px}
+.grp{flex:1}
+.gl{font-size:8px;font-weight:600;color:#888877;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.betr{display:flex;align-items:center;background:#0d0d0d;border:1px solid #333;border-radius:6px;overflow:hidden;height:30px}
+.betr input{flex:1;background:transparent;border:none;outline:none;color:#f0ece0;font-family:‘Barlow Condensed’,sans-serif;font-size:14px;font-weight:600;padding:0 6px;min-width:0;-webkit-appearance:none}
+.hb{background:#242424;border:none;color:#888877;padding:0 8px;height:100%;font-size:11px;font-weight:700;cursor:pointer;-webkit-appearance:none}
+.hb:active{color:#f0ece0}
+.qrow{display:flex;gap:3px;margin-top:3px}
+.qb{flex:1;background:#242424;border:1px solid #333;border-radius:4px;color:#888877;font-family:‘Barlow Condensed’,sans-serif;font-size:10px;font-weight:600;padding:3px 2px;cursor:pointer;text-align:center;-webkit-appearance:none}
+.qb:active{border-color:#f5c842!important;color:#f0ece0}
+.mp{display:flex;gap:3px;margin-top:2px}
+.mb{flex:1;aspect-ratio:1;background:#0d0d0d;border:1px solid #333;border-radius:5px;color:#888877;font-family:‘Barlow Condensed’,sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-appearance:none}
+.mb.on{background:#f5c842;border-color:#f5c842;color:#000}
+.mb:disabled,.hb:disabled,.qb:disabled{opacity:.3;cursor:default}
+.odds{display:flex;gap:5px}
+.op{flex:1;background:#0d0d0d;border:1px solid #333;border-radius:6px;padding:4px 8px}
+.op .l{font-size:8px;color:#888877;text-transform:uppercase;letter-spacing:.4px}
+.op .v{font-family:‘Rajdhani’,sans-serif;font-size:14px;font-weight:700}
+.op .vg{color:#f5c842}.op .vgo{color:#e8504a}
+.actbtn{width:100%;padding:11px;border:none;border-radius:9px;font-family:‘Barlow Condensed’,sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;background:#f5c842;color:#000;box-shadow:0 4px 16px rgba(245,200,66,.35);-webkit-appearance:none}
+.actbtn:active{filter:brightness(1.1);transform:scale(.97)}
+.actbtn.co{background:#e8504a;color:#fff;animation:pglow 1s infinite;box-shadow:0 4px 16px rgba(232,80,74,.4)}
+@keyframes pglow{0%,100%{box-shadow:0 0 0 0 rgba(232,80,74,.4)}50%{box-shadow:0 0 0 8px rgba(232,80,74,0)}}
+
+/* toast */
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-60px);background:#1a1a1a;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:600;border-left:3px solid #f5c842;white-space:nowrap;z-index:999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.bad{border-color:#e85555}
+</style>
+
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">GO<b style="color:#f5c842">AT</b></div>
+  <div class="topmult" id="topmult" style="opacity:0">
+    <span class="mnum" id="elMult">1.00x</span>
+    <span class="mlbl">multiplier</span>
+  </div>
+  <div class="chip"><div class="dot"></div>💰<span class="amt" id="elBal">1,000.00</span></div>
+</div>
+
+<div class="board">
+  <div class="grid" id="elGrid"></div>
+  <div class="trail" id="elTrail"><span style="color:#333">—</span></div>
+  <div class="st" id="elSt">Place a bet to start</div>
+</div>
+
+<div class="stats">
+  <div class="sc"><div class="l">Profit</div><div class="v g" id="elProfit">+0.00</div></div>
+  <div class="sc"><div class="l">Hits</div><div class="v" id="elHits">0</div></div>
+  <div class="sc"><div class="l">Wagered</div><div class="v" id="elWag">0.00</div></div>
+  <div class="sc"><div class="l">Best</div><div class="v go" id="elBest">—</div></div>
+</div>
+
+<div class="sheet">
+  <div class="tabs">
+    <button class="tab on">Manual</button>
+    <button class="tab">Auto</button>
+  </div>
+  <div class="r2">
+    <div class="grp">
+      <div class="gl">Bet Amount</div>
+      <div class="betr">
+        <button class="hb" id="hb1" onclick="sndClick();adjBet(0.5)">1/2</button>
+        <input type="number" id="elBet" value="1.00" min="0.10" step="0.10" inputmode="decimal">
+        <button class="hb" id="hb2" onclick="sndClick();adjBet(2)">2x</button>
+      </div>
+      <div class="qrow">
+        <button class="qb" id="qb1" onclick="sndClick();setBet(1)">1</button>
+        <button class="qb" id="qb2" onclick="sndClick();setBet(5)">5</button>
+        <button class="qb" id="qb3" onclick="sndClick();setBet(25)">25</button>
+        <button class="qb" id="qb4" onclick="sndClick();setBet(100)">100</button>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="gl">Moles</div>
+      <div class="mp">
+        <button class="mb" id="mb1" onclick="sndClick();setM(1)">1</button>
+        <button class="mb on" id="mb2" onclick="sndClick();setM(2)">2</button>
+        <button class="mb" id="mb3" onclick="sndClick();setM(3)">3</button>
+        <button class="mb" id="mb4" onclick="sndClick();setM(4)">4</button>
+        <button class="mb" id="mb5" onclick="sndClick();setM(5)">5</button>
+        <button class="mb" id="mb6" onclick="sndClick();setM(6)">6</button>
+      </div>
+    </div>
+  </div>
+  <div class="odds">
+    <div class="op"><div class="l">Win Chance</div><div class="v vg" id="elChance">28.57%</div></div>
+    <div class="op"><div class="l">Next Multiplier</div><div class="v vgo" id="elNext">x3.43</div></div>
+  </div>
+  <button class="actbtn" id="elBtn" onclick="sndClick();handleBtn()">BET</button>
+</div>
+
+<div class="toast" id="elToast"></div>
+
+<script>
+var MULT = {
+  1:[6.86,48.02,336.14,2352.98,16470.86,115296.02,807072.14,5649504.98],
+  2:[3.43,12.00,42.01,147.06,514.71,1801.50,6305.25,22068.37,77239.32],
+  3:[2.28,5.33,12.45,29.04,67.78,158.15,369.03,861.07,2009.17],
+  4:[1.71,3.00,5.25,9.19,16.08,28.14,49.26,86.20,150.85],
+  5:[1.37,1.92,2.68,3.76,5.27,7.37,10.33,14.46,20.24],
+  6:[1.14,1.33,1.55,1.81,2.11,2.47,2.88,3.36,3.92]
+};
+
+var bal=1000, nm=2, bet=1, active=false, cur=1, hits=0, wag=0, best=0, trail=[], moles=[];
+
+function gSVG(col) {
+  var b = col==='o' ? '#e8872a' : '#f0c040';
+  var s = col==='o' ? '#0f2518' : '#0d2416';
+  var l = '#00e874', h = '#ccc';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 68" width="100%" height="100%">'
+    +'<path d="M19 15 C17 8 16 3 19 1 C22 3 22 8 21 15Z" fill="'+h+'"/>'
+    +'<path d="M41 15 C43 8 44 3 41 1 C38 3 38 8 39 15Z" fill="'+h+'"/>'
+    +'<rect x="7" y="13" width="46" height="36" rx="8" fill="'+b+'"/>'
+    +'<rect x="11" y="17" width="38" height="26" rx="4" fill="#111"/>'
+    +'<rect x="12" y="18" width="36" height="24" rx="3" fill="'+s+'"/>'
+    +'<circle cx="22" cy="28" r="4" fill="'+l+'"/>'
+    +'<circle cx="38" cy="28" r="4" fill="'+l+'"/>'
+    +'<circle cx="23.5" cy="26.5" r="1.2" fill="white" opacity="0.55"/>'
+    +'<circle cx="39.5" cy="26.5" r="1.2" fill="white" opacity="0.55"/>'
+    +'<path d="M19 35 Q30 43 41 35" stroke="'+l+'" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+    +'<circle cx="7" cy="31" r="4.5" fill="'+b+'"/><circle cx="7" cy="31" r="2" fill="#4a8a28"/>'
+    +'<circle cx="53" cy="31" r="4.5" fill="'+b+'"/><circle cx="53" cy="31" r="2" fill="#b89010"/>'
+    +'</svg>';
+}
+
+/* Sad GOAT — X eyes, frown, red tint screen */
+function gSVGsad() {
+  var b = '#f0c040', h = '#ccc', s = '#2a0505', l = '#ff4444';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 68" width="100%" height="100%">'
+    +'<path d="M19 15 C17 8 16 3 19 1 C22 3 22 8 21 15Z" fill="'+h+'"/>'
+    +'<path d="M41 15 C43 8 44 3 41 1 C38 3 38 8 39 15Z" fill="'+h+'"/>'
+    +'<rect x="7" y="13" width="46" height="36" rx="8" fill="'+b+'"/>'
+    +'<rect x="11" y="17" width="38" height="26" rx="4" fill="#111"/>'
+    +'<rect x="12" y="18" width="36" height="24" rx="3" fill="'+s+'"/>'
+    /* X left eye */
+    +'<line x1="19" y1="24" x2="25" y2="30" stroke="'+l+'" stroke-width="2.2" stroke-linecap="round"/>'
+    +'<line x1="25" y1="24" x2="19" y2="30" stroke="'+l+'" stroke-width="2.2" stroke-linecap="round"/>'
+    /* X right eye */
+    +'<line x1="35" y1="24" x2="41" y2="30" stroke="'+l+'" stroke-width="2.2" stroke-linecap="round"/>'
+    +'<line x1="41" y1="24" x2="35" y2="30" stroke="'+l+'" stroke-width="2.2" stroke-linecap="round"/>'
+    /* frown */
+    +'<path d="M20 38 Q30 32 40 38" stroke="'+l+'" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+    +'<circle cx="7" cy="31" r="4.5" fill="'+b+'"/><circle cx="7" cy="31" r="2" fill="#4a8a28"/>'
+    +'<circle cx="53" cy="31" r="4.5" fill="'+b+'"/><circle cx="53" cy="31" r="2" fill="#b89010"/>'
+    +'</svg>';
+}
+
+/* Build grid: row of 3, row of 2, row of 2 */
+(function() {
+  var g = document.getElementById('elGrid');
+  var rows = [3,2,2];
+  var idx = 0;
+  for (var r = 0; r < rows.length; r++) {
+    var row = document.createElement('div');
+    row.className = 'grow';
+    row.style.width = '100%';
+    for (var j = 0; j < rows[r]; j++) {
+      var cell = document.createElement('div');
+      cell.className = 'gcell';
+      cell.id = 'cell' + idx;
+
+      var wrap = document.createElement('div');
+      wrap.className = 'hole-wrap';
+
+      var hole = document.createElement('div');
+      hole.className = 'hole h-idle';
+      hole.id = 'hole' + idx;
+      hole.setAttribute('onclick', 'pick(' + idx + ')');
+
+      var inner = document.createElement('div');
+      inner.className = 'hole-inner';
+      inner.id = 'inner' + idx;
+
+      var goat = document.createElement('div');
+      goat.className = 'goat';
+      goat.id = 'goat' + idx;
+
+      inner.appendChild(goat);
+      hole.appendChild(inner);
+      wrap.appendChild(hole);
+      cell.appendChild(wrap);
+
+      var fm = document.createElement('div');
+      fm.className = 'fmult';
+      fm.id = 'fm' + idx;
+      cell.appendChild(fm);
+
+      row.appendChild(cell);
+      idx++;
+    }
+    g.appendChild(row);
+  }
+})();
+
+function setM(n) {
+  nm = n;
+  for (var i=1;i<=6;i++) {
+    var el = document.getElementById('mb'+i);
+    if (i===n) el.classList.add('on'); else el.classList.remove('on');
+  }
+  updOdds();
+}
+
+function updOdds() {
+  document.getElementById('elChance').textContent = (nm/7*100).toFixed(2)+'%';
+  document.getElementById('elNext').textContent = 'x'+MULT[nm][Math.min(hits,MULT[nm].length-1)].toFixed(2);
+}
+
+function adjBet(f) {
+  bet = Math.max(0.1, parseFloat((bet*f).toFixed(2)));
+  document.getElementById('elBet').value = bet.toFixed(2);
+}
+function setBet(v) { bet=v; document.getElementById('elBet').value=v.toFixed(2); }
+document.getElementById('elBet').addEventListener('input', function() {
+  var v = parseFloat(this.value);
+  if (!isNaN(v)) bet = v;
+});
+
+function handleBtn() { if (active) doCashout(); else doStart(); }
+
+function doStart() {
+  var b = parseFloat(document.getElementById('elBet').value);
+  if (isNaN(b) || b <= 0) b = 1;
+  bet = b;
+  if (bet > bal) { toast('Insufficient balance!', true); return; }
+  bal -= bet; wag += bet;
+  active = true; cur = 1; hits = 0; trail = [];
+  updBal();
+  document.getElementById('elWag').textContent = wag.toFixed(2);
+  var btn = document.getElementById('elBtn');
+  btn.textContent = 'CASH OUT'; btn.classList.add('co');
+  lock(true);
+  setSt('Pick a hole!', '');
+  stopIdleAnim();
+  snd('bet');
+  newRound();
+}
+
+function newRound() {
+  for (var i=0;i<7;i++) {
+    setHoleState(i,'ready');
+    var g = document.getElementById('goat'+i);
+    g.innerHTML = ''; g.classList.remove('show');
+  }
+  var arr=[0,1,2,3,4,5,6].sort(function(){return Math.random()-.5;});
+  moles = arr.slice(0,nm);
+  updOdds();
+}
+
+function pick(idx) {
+  if (!active) return;
+  sndClick();
+  var h = document.getElementById('hole'+idx);
+  if (h.className.indexOf('h-ready') === -1) return;
+
+  for (var i=0;i<7;i++) {
+    var hi = document.getElementById('hole'+i);
+    hi.className = hi.className.replace('h-ready','h-idle');
+  }
+
+  if (moles.indexOf(idx) !== -1) {
+    setHoleState(idx,'hit');
+    showGoat(idx,'n');
+    hits++;
+    cur = MULT[nm][Math.min(hits-1,MULT[nm].length-1)];
+    snd('hit');
+    showFM(idx, '+'+cur.toFixed(2)+'x');
+    trail.push(cur);
+    updMult(); updTrail(); updProfit(); updBal();
+    if (cur > best) { best=cur; document.getElementById('elBest').textContent='x'+best.toFixed(2); }
+    document.getElementById('elHits').textContent = hits;
+    for (var k=0;k<7;k++) {
+      if (k===idx) continue;
+      if (moles.indexOf(k)!==-1) { setHoleState(k,'reveal'); showGoat(k,'o'); }
+      else setHoleState(k,'empty');
+    }
+    if (hits >= 9) {
+      setSt('Max hits! Auto cashing out...','ok');
+      snd('win');
+      setTimeout(doCashout, 1100);
+    } else {
+      setSt('Hit! +'+cur.toFixed(2)+'x','ok');
+      setTimeout(function(){ if(active) newRound(); }, 1100);
+    }
+  } else {
+    setHoleState(idx,'miss');
+    var g = document.getElementById('goat'+idx);
+    g.innerHTML = gSVGsad();
+    g.classList.add('show');
+    snd('miss');
+    /* reveal ALL other holes with sad GOATs, staggered */
+    var revealOrder = [];
+    for (var k=0;k<7;k++) { if (k!==idx) revealOrder.push(k); }
+    revealOrder.sort(function(){ return Math.random()-0.5; });
+    revealOrder.forEach(function(k, i) {
+      setTimeout(function() {
+        setHoleState(k, 'miss');
+        var gk = document.getElementById('goat'+k);
+        gk.innerHTML = gSVGsad();
+        gk.classList.remove('show');
+        void gk.offsetWidth;
+        gk.classList.add('show');
+        sndGoat();
+      }, 150 + i * 100);
+    });
+    setSt('Missed! Round over','bad');
+    setTimeout(endRound, 1100 + revealOrder.length * 100);
+  }
+}
+
+function setHoleState(i, st) {
+  var h = document.getElementById('hole'+i);
+  var base = 'hole ';
+  if (st==='ready')  h.className = base+'h-ready';
+  else if(st==='hit')    h.className = base+'h-hit';
+  else if(st==='reveal') h.className = base+'h-reveal';
+  else if(st==='miss')   h.className = base+'h-miss';
+  else if(st==='empty')  h.className = base+'h-empty';
+  else                   h.className = base+'h-idle';
+}
+
+function showGoat(i, col) {
+  var g = document.getElementById('goat'+i);
+  g.innerHTML = gSVG(col);
+  g.classList.remove('show');
+  void g.offsetWidth;
+  g.classList.add('show');
+}
+
+function showFM(i, txt) {
+  var fm = document.getElementById('fm'+i);
+  fm.textContent = txt;
+  fm.classList.remove('pop');
+  void fm.offsetWidth;
+  fm.classList.add('pop');
+}
+
+function doCashout() {
+  if (!active) return;
+  snd('cash');
+  var win = bet*cur; bal += win; updBal();
+  toast('Cashed out! +'+(win-bet).toFixed(2)+' ('+cur.toFixed(2)+'x)', false);
+  resetGame();
+}
+
+function endRound() {
+  active = false;
+  toast('Missed! Lost '+bet.toFixed(2), true);
+  resetGame(); updProfit();
+}
+
+function resetGame() {
+  active = false;
+  var btn = document.getElementById('elBtn');
+  btn.textContent='BET'; btn.classList.remove('co');
+  lock(false);
+  for (var i=0;i<7;i++) {
+    setHoleState(i,'idle');
+    var g=document.getElementById('goat'+i);
+    g.innerHTML=''; g.classList.remove('show');
+  }
+  document.getElementById('topmult').style.opacity='0';
+  document.getElementById('elMult').textContent='1.00x';
+  cur=1; hits=0;
+  document.getElementById('elHits').textContent='0';
+  document.getElementById('elProfit').textContent='+0.00';
+  document.getElementById('elProfit').style.color='';
+  setSt('Place a bet to start','');
+  updOdds();
+  setTimeout(startIdleAnim, 400);
+}
+
+function lock(v) {
+  ['elBet','hb1','hb2','qb1','qb2','qb3','qb4','mb1','mb2','mb3','mb4','mb5','mb6'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.disabled=v;
+  });
+}
+
+function updMult() {
+  document.getElementById('topmult').style.opacity='1';
+  document.getElementById('elMult').textContent=cur.toFixed(2)+'x';
+}
+function updTrail() {
+  var t=document.getElementById('elTrail');
+  if (!trail.length) { t.innerHTML='<span style="color:var(--border)">—</span>'; return; }
+  var h='';
+  for (var i=0;i<trail.length;i++) {
+    h+='<span'+(i===trail.length-1?' class="cur"':'')+'>'+trail[i].toFixed(2)+'x</span>';
+    if(i<trail.length-1) h+='<i>›</i>';
+  }
+  t.innerHTML=h; t.scrollLeft=t.scrollWidth;
+}
+function updBal() {
+  document.getElementById('elBal').textContent=bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function updProfit() {
+  if (!active) { document.getElementById('elProfit').textContent='+0.00'; return; }
+  var p=bet*cur-bet, el=document.getElementById('elProfit');
+  el.textContent=(p>=0?'+':'')+p.toFixed(2);
+  el.style.color=p>=0?'var(--green)':'var(--red)';
+}
+function setSt(m,c) {
+  var s=document.getElementById('elSt'); s.textContent=m; s.className='st '+c;
+}
+function toast(m, bad) {
+  var t=document.getElementById('elToast');
+  t.textContent=m; t.className='toast'+(bad?' bad':'');
+  void t.offsetWidth; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2400);
+}
+
+/* ═══════════════════════════════
+   SOUND ENGINE
+═══════════════════════════════ */
+var AC = null;
+var bgNodes = [];
+var bgGain = null;
+var bgRunning = false;
+
+function getAC() {
+  if (!AC) { try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
+  if (AC && AC.state==='suspended') { try { AC.resume(); } catch(e){} }
+  return AC;
+}
+
+/* ── click tick ── */
+function sndClick() {
+  var ac = getAC(); if (!ac) return;
+  try {
+    var o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type='sine'; o.frequency.value=900;
+    g.gain.setValueAtTime(0.06, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+0.05);
+    o.start(); o.stop(ac.currentTime+0.05);
+  } catch(e){}
+}
+
+/* ── goat pop/squeak ── */
+function sndGoat() {
+  var ac = getAC(); if (!ac) return;
+  try {
+    var freq = 300 + Math.random()*400;
+    var o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type='sine';
+    o.frequency.setValueAtTime(freq, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(freq*1.5, ac.currentTime+0.06);
+    o.frequency.exponentialRampToValueAtTime(freq*0.8, ac.currentTime+0.14);
+    g.gain.setValueAtTime(0.09, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+0.18);
+    o.start(); o.stop(ac.currentTime+0.18);
+  } catch(e){}
+}
+
+/* ── bet placed ── */
+function sndBet() {
+  var ac = getAC(); if (!ac) return;
+  try {
+    [220,330,440].forEach(function(f,i){
+      var o=ac.createOscillator(),g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type='triangle'; o.frequency.value=f;
+      var t=ac.currentTime+i*0.05;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.15,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+      o.start(t); o.stop(t+0.12);
+    });
+  } catch(e){}
+}
+
+/* ── hit ── */
+function sndHit(n) {
+  var ac = getAC(); if (!ac) return;
+  try {
+    var base = 400 + n*60;
+    var o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type='sine';
+    o.frequency.setValueAtTime(base, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(base*1.4, ac.currentTime+0.1);
+    g.gain.setValueAtTime(0.25, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+0.2);
+    o.start(); o.stop(ac.currentTime+0.2);
+    /* thump */
+    var o2=ac.createOscillator(),g2=ac.createGain();
+    o2.connect(g2); g2.connect(ac.destination);
+    o2.type='triangle'; o2.frequency.setValueAtTime(160,ac.currentTime);
+    o2.frequency.exponentialRampToValueAtTime(50,ac.currentTime+0.08);
+    g2.gain.setValueAtTime(0.3,ac.currentTime);
+    g2.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.1);
+    o2.start(); o2.stop(ac.currentTime+0.1);
+    /* squeak */
+    setTimeout(sndGoat, 60);
+  } catch(e){}
+}
+
+/* ── miss — cinematic whoosh + sad descending notes ── */
+function sndMiss() {
+  var ac = getAC(); if (!ac) return;
+  try {
+    /* deep sweep down */
+    var o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type='sine';
+    o.frequency.setValueAtTime(440, ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(55, ac.currentTime+0.6);
+    g.gain.setValueAtTime(0.0, ac.currentTime);
+    g.gain.linearRampToValueAtTime(0.22, ac.currentTime+0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+0.65);
+    o.start(); o.stop(ac.currentTime+0.65);
+    /* low thud */
+    var o2=ac.createOscillator(), g2=ac.createGain();
+    o2.connect(g2); g2.connect(ac.destination);
+    o2.type='triangle';
+    o2.frequency.setValueAtTime(120, ac.currentTime+0.05);
+    o2.frequency.exponentialRampToValueAtTime(30, ac.currentTime+0.25);
+    g2.gain.setValueAtTime(0.35, ac.currentTime+0.05);
+    g2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime+0.28);
+    o2.start(ac.currentTime+0.05); o2.stop(ac.currentTime+0.28);
+    /* sad 3-note descend */
+    [164.8, 146.8, 123.5].forEach(function(f, i) {
+      var oo=ac.createOscillator(), gg=ac.createGain();
+      oo.connect(gg); gg.connect(ac.destination);
+      oo.type='sine'; oo.frequency.value=f;
+      var t=ac.currentTime+0.3+i*0.14;
+      gg.gain.setValueAtTime(0,t);
+      gg.gain.linearRampToValueAtTime(0.12, t+0.03);
+      gg.gain.exponentialRampToValueAtTime(0.001, t+0.18);
+      oo.start(t); oo.stop(t+0.18);
+    });
+  } catch(e){}
+}
+
+/* ── cashout ── */
+function sndCash() {
+  var ac = getAC(); if (!ac) return;
+  try {
+    [523,659,784,1047].forEach(function(f,i){
+      var o=ac.createOscillator(),g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type='sine'; o.frequency.value=f;
+      var t=ac.currentTime+i*0.1;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.2,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.28);
+      o.start(t); o.stop(t+0.28);
+    });
+  } catch(e){}
+}
+
+/* ── max win fanfare ── */
+function sndWin() {
+  var ac = getAC(); if (!ac) return;
+  try {
+    [523,659,784,880,1047,1319,1568].forEach(function(f,i){
+      var o=ac.createOscillator(),g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type='sine'; o.frequency.value=f;
+      var t=ac.currentTime+i*0.08;
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.18,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+      o.start(t); o.stop(t+0.3);
+    });
+  } catch(e){}
+}
+
+/* ══════════════════════════════
+   BACKGROUND MUSIC
+   Looping 4-bar chiptune groove
+══════════════════════════════ */
+function startBgMusic() {
+  var ac = getAC(); if (!ac || bgRunning) return;
+  bgRunning = true;
+  bgGain = ac.createGain();
+  bgGain.gain.value = 0.055;
+  bgGain.connect(ac.destination);
+
+  /* Bass pattern: C2 G2 A2 F2 loop */
+  var bassNotes = [65.4,98.0,110.0,87.3];
+  /* Melody: simple pentatonic riff */
+  var melNotes   = [523,659,784,659,523,440,523,0,
+                    659,784,880,784,659,523,659,0];
+  var melDurs    = [0.18,0.18,0.18,0.18,0.18,0.18,0.36,0.36,
+                    0.18,0.18,0.18,0.18,0.18,0.18,0.36,0.36];
+  var beat = 0.22; /* seconds per beat */
+  var barLen = beat * 4;
+  var loopLen = barLen * 4;
+
+  function scheduleLoop(startT) {
+    if (!bgRunning) return;
+    /* Bass — one note per beat */
+    for (var b=0;b<16;b++) {
+      var bf = bassNotes[b%4];
+      var bt = startT + b*beat;
+      var o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(bgGain);
+      o.type='square'; o.frequency.value=bf;
+      g.gain.setValueAtTime(0,bt);
+      g.gain.linearRampToValueAtTime(0.6,bt+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,bt+beat*0.7);
+      o.start(bt); o.stop(bt+beat);
+      bgNodes.push(o);
+    }
+    /* Hi-hat on every beat */
+    for (var h=0;h<16;h++) {
+      var ht=startT+h*beat;
+      var buf=ac.createBuffer(1,ac.sampleRate*0.04,ac.sampleRate);
+      var d=buf.getChannelData(0);
+      for(var s=0;s<d.length;s++) d[s]=(Math.random()*2-1);
+      var src=ac.createBufferSource();
+      src.buffer=buf;
+      var hg=ac.createGain(); hg.gain.value=0.04;
+      src.connect(hg); hg.connect(bgGain);
+      src.start(ht); bgNodes.push(src);
+    }
+    /* Melody */
+    var mt=startT;
+    for (var m=0;m<melNotes.length;m++) {
+      if (melNotes[m]>0) {
+        (function(f,t,dur){
+          var o=ac.createOscillator(),g=ac.createGain();
+          o.connect(g); g.connect(bgGain);
+          o.type='triangle'; o.frequency.value=f;
+          g.gain.setValueAtTime(0,t);
+          g.gain.linearRampToValueAtTime(0.5,t+0.02);
+          g.gain.exponentialRampToValueAtTime(0.001,t+dur*0.85);
+          o.start(t); o.stop(t+dur);
+          bgNodes.push(o);
+        })(melNotes[m], mt, melDurs[m]);
+      }
+      mt += melDurs[m];
+    }
+    /* schedule next loop */
+    setTimeout(function(){ scheduleLoop(startT+loopLen); }, (loopLen-0.3)*1000);
+  }
+
+  scheduleLoop(ac.currentTime + 0.1);
+}
+
+function stopBgMusic() {
+  bgRunning = false;
+  for (var i=0;i<bgNodes.length;i++) {
+    try { bgNodes[i].stop(); } catch(e){}
+  }
+  bgNodes = [];
+  if (bgGain) { bgGain.disconnect(); bgGain=null; }
+}
+
+/* unified snd() shim for old calls */
+function snd(type) {
+  if (type==='bet')  sndBet();
+  else if (type==='hit')  sndHit(hits);
+  else if (type==='miss') sndMiss();
+  else if (type==='cash') sndCash();
+  else if (type==='win')  sndWin();
+}
+
+
+var idleIntervals = [];
+
+function startIdleAnim() {
+  stopIdleAnim();
+  for (var i = 0; i < 7; i++) {
+    (function(idx) {
+      var delay = idx * 180;
+      setTimeout(function() {
+        if (active) return;
+        var g = document.getElementById('goat'+idx);
+        if (!g) return;
+        g.innerHTML = gSVG('n');
+        g.classList.add('show','idle-anim');
+        // squeak only on the initial pop-in, no repeat
+        sndGoat();
+      }, delay);
+    })(i);
+  }
+}
+
+function stopIdleAnim() {
+  for (var i = 0; i < idleIntervals.length; i++) clearInterval(idleIntervals[i]);
+  idleIntervals = [];
+  for (var j = 0; j < 7; j++) {
+    var g = document.getElementById('goat'+j);
+    if (g) { g.innerHTML=''; g.classList.remove('show','idle-anim'); }
+  }
+}
+
+/* Init — must be after all functions defined */
+setM(2);
+startIdleAnim();
+</script>
+
+</body>
+</html>
